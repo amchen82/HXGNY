@@ -27,23 +27,6 @@
 //
 //// MARK: - File: Sources/Models/ClassItem.swift
 //```swift
-
-import CryptoKit
-
-func stableUUID(from key: String) -> UUID {
-    let hash = SHA256.hash(data: Data(key.utf8))
-    var bytes = Array(hash.prefix(16)) // 16 bytes = 128 bits
-    // Set version (4) and variant (RFC 4122)
-    bytes[6] = (bytes[6] & 0x0F) | 0x40
-    bytes[8] = (bytes[8] & 0x3F) | 0x80
-    return UUID(uuid: (
-        bytes[0], bytes[1], bytes[2], bytes[3],
-        bytes[4], bytes[5], bytes[6], bytes[7],
-        bytes[8], bytes[9], bytes[10], bytes[11],
-        bytes[12], bytes[13], bytes[14], bytes[15]
-    ))
-}
-
 import Foundation
 
 public struct ClassItem: Identifiable, Codable, Hashable {
@@ -56,6 +39,7 @@ public struct ClassItem: Identifiable, Codable, Hashable {
     public let grade: String
     public let room: String
     public let buildingHint: String?
+    public let category: String
 
     public init(
         id: UUID = UUID(),
@@ -66,7 +50,8 @@ public struct ClassItem: Identifiable, Codable, Hashable {
         time: String,
         grade: String,
         room: String,
-        buildingHint: String?
+        buildingHint: String?,
+        category: String
     ) {
         self.id = id
         self.title = title
@@ -77,37 +62,63 @@ public struct ClassItem: Identifiable, Codable, Hashable {
         self.grade = grade
         self.room = room
         self.buildingHint = buildingHint
+        self.category = category
     }
     
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = (try? c.decode(UUID.self, forKey: .id)) ?? UUID()  // default if missing
+        self.title = try c.decode(String.self, forKey: .title)
+        self.teacher = try c.decode(String.self, forKey: .teacher)
+        self.chineseTeacher = try? c.decode(String.self, forKey: .chineseTeacher)
+        self.day = try c.decode(String.self, forKey: .day)
+        self.time = try c.decode(String.self, forKey: .time)
+        self.grade = try c.decode(String.self, forKey: .grade)
+        self.room = try c.decode(String.self, forKey: .room)
+        self.buildingHint = try? c.decode(String.self, forKey: .buildingHint)
+        self.category = try c.decode(String.self, forKey: .category) // ← decode safely
+        
+    }
+    
+    
+}
+public extension ClassItem {
+    /// Estimate the minimum age required for the class
+    var minAge: Int? {
+        let g = grade.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
-        // Decode fields first
-        let title = try c.decode(String.self, forKey: .title)
-        let teacher = try c.decode(String.self, forKey: .teacher)
-        let chineseTeacher = try? c.decode(String.self, forKey: .chineseTeacher)
-        let day = try c.decode(String.self, forKey: .day)
-        let time = try c.decode(String.self, forKey: .time)
-        let grade = try c.decode(String.self, forKey: .grade)
-        let room = try c.decode(String.self, forKey: .room)
-        let buildingHint = try? c.decode(String.self, forKey: .buildingHint)
-
-        // Prefer explicit id if present; otherwise compute a deterministic one
-        if let parsed = try? c.decode(UUID.self, forKey: .id) {
-            self.id = parsed
-        } else {
-            let key = [title, teacher, day, time, room].joined(separator: "|")
-            self.id = stableUUID(from: key)
+        // Direct age in years (e.g., "> 6岁", "7岁")
+        if let match = g.range(of: "[0-9]{1,2}(?=岁)", options: .regularExpression) {
+            return Int(g[match])
         }
 
-        self.title = title
-        self.teacher = teacher
-        self.chineseTeacher = chineseTeacher
-        self.day = day
-        self.time = time
-        self.grade = grade
-        self.room = room
-        self.buildingHint = buildingHint
+        // PreK / Kindergarten → age 4–5
+        if g.contains("prek") || g.contains("pre-k") { return 4 }
+        if g.contains("k") && !g.contains("1st") { return 5 }
+
+        // 1st–12th grade mappings
+        let gradeMap: [String: Int] = [
+            "1st": 6, "2nd": 7, "3rd": 8, "4th": 9,
+            "5th": 10, "6th": 11, "7th": 12,
+            "8th": 13, "9th": 14, "10th": 15,
+            "11th": 16, "12th": 17
+        ]
+
+        for (keyword, age) in gradeMap {
+            if g.contains(keyword) { return age }
+        }
+
+        // "& up" — try to pull grade before "&"
+        if g.contains("& up") {
+            for (keyword, age) in gradeMap {
+                if g.contains(keyword) { return age }
+            }
+        }
+
+        // Adults: assume 18+
+        if g.contains("adult") { return 18 }
+
+        return nil
     }
 }
 
@@ -198,7 +209,11 @@ public final class ClassStore: ObservableObject {
     @Published public var onlyOnSite: Bool = false
     @Published public private(set) var items: [ClassItem] = []
     @Published public var lastUpdated: Date? = UserDefaults.standard.object(forKey: "classes.lastUpdated") as? Date
-
+    
+    public var categories: [String] {
+        let set = Set(items.map { $0.category.trimmingCharacters(in: .whitespacesAndNewlines) })
+        return set.sorted()
+    }
     private let provider: ClassDataProvider
 
     public init(provider: ClassDataProvider) {
@@ -225,16 +240,82 @@ public final class ClassStore: ObservableObject {
         }
     }
 
-    public var filtered: [ClassItem] {
+    public func filtered(matching category: String) -> [ClassItem] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        // Normalize a helper for case-insensitive compare
+        func norm(_ s: String) -> String {
+            s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }
+
         return items.filter { item in
-            if onlyOnSite && item.room.lowercased().contains("online") { return false }
+            // On-site only
+            if onlyOnSite {
+                let isOnline = norm(item.room).contains("online") || norm(item.room).contains("zoom")
+                if isOnline { return false }
+            }
+
+            // Category filter (use contains to forgive pluralization / minor variations)
+            if !category.isEmpty {
+                if !norm(item.category).contains(norm(category)) { return false }
+            }
+
+            // Numeric age query (exact)
+            if let age = Int(q) {
+                guard let min = item.minAge else { return false }
+                return min == age
+            }
+
+            // Text query
             guard !q.isEmpty else { return true }
-            return [item.title, item.teacher, item.chineseTeacher ?? "", item.day, item.time, item.room, item.buildingHint ?? ""].joined(separator: " ")
-                .lowercased().contains(q)
-        }.sorted { $0.title < $1.title }
+            return [item.title, item.teacher, item.chineseTeacher ?? "", item.day, item.time, item.grade, item.room, item.category, item.buildingHint ?? ""]
+                .joined(separator: " ")
+                .lowercased()
+                .contains(q)
+        }
+        .sorted { $0.title < $1.title }
     }
 }
+
+
+import SwiftUI
+
+struct MyScheduleView: View {
+    @EnvironmentObject var schedule: MyScheduleStore
+
+    var body: some View {
+        Group {
+            if schedule.saved.isEmpty {
+                ContentUnavailableView("No Saved Classes", systemImage: "bookmark", description: Text("Swipe left on a class to save it."))
+            } else {
+                List(schedule.saved) { item in
+                    VStack(alignment: .leading) {
+                        Text(item.title).font(.headline)
+                        HStack {
+                                    Text("\(item.time)")
+                                    
+                                    Spacer()
+                                    Text("\(item.day)")
+                                    Spacer()
+                                    Text(item.room)
+                                }
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }.swipeActions {
+                        Button(role: .destructive) {
+                            schedule.toggle(item)   // removes if already saved
+                        } label: {
+                            Label("Remove", systemImage: "trash")
+                        }
+                    }
+                }
+                .navigationTitle("My Schedule")
+            }
+        }
+    }
+}
+
+
 //```
 //
 //---
@@ -242,56 +323,76 @@ public final class ClassStore: ObservableObject {
 //// MARK: - File: Sources/Views/ClassListView.swift
 //```swift
 import SwiftUI
-import AuthenticationServices
-// at file bottom or a new small file
-struct MarkButton: View {
-    @EnvironmentObject var schedule: ScheduleStore
-    let item: ClassItem
 
-    var body: some View {
-        let isOn = schedule.isMarked(item.id)
-        Button {
-            schedule.toggle(item.id)
-        } label: {
-            Label(isOn ? "Unmark" : "Mark", systemImage: isOn ? "checkmark.circle.fill" : "plus.circle")
-        }
-        .tint(isOn ? .green : .blue)
-    }
-}
 struct ClassListView: View {
     @EnvironmentObject var store: ClassStore
-
+    @State private var selectedCategory: String = ""
+    @EnvironmentObject var schedule: MyScheduleStore
+    let predefinedCategories = [
+        "", // ← For "All" / default
+        "Junior Chinese Language Classes",
+        "Senior Chinese Language Class",
+        "Junior Enrichment Class",
+        "Senior Enrichment Class",
+        "Adult Classes"
+    ]
     var body: some View {
-        NavigationStack {
-            List(store.filtered) { item in
-                NavigationLink(value: item) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(item.title).font(.headline)
-                        HStack { Image(systemName: "person"); Text(item.teacher) }
-                            .font(.subheadline).foregroundColor(.secondary)
-                        HStack(spacing: 12) {
-                            Label(item.day, systemImage: "calendar")
-                            Label(item.time, systemImage: "clock")
-                            Label(item.room, systemImage: "mappin.and.ellipse")
-                        }.font(.caption)
+       
+            // Category Picker
+            Picker("Category", selection: $selectedCategory) {
+                                Text("All Categories").tag("")
+                ForEach(store.categories, id: \.self) { category in
+                        Text(category).tag(category)
                     }
-                    
+                            }
+                            .pickerStyle(MenuPickerStyle())
+                            .padding(.horizontal)
+            
+            List {
+                ForEach(store.filtered(matching: selectedCategory)) { item in
+                    NavigationLink(value: item) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(item.title).font(.headline)
+                            HStack {
+                                Image(systemName: "graduationcap.fill")
+                                Text(item.grade)
+                            }
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                            HStack(spacing: 12) {
+                                Label(item.day, systemImage: "calendar")
+                                Label(item.time, systemImage: "clock")
+                                Label(item.room, systemImage: "mappin.and.ellipse")
+                            }
+                            .font(.caption)
+                        }
+                    }
+                    .swipeActions(edge: .trailing) {
+                        Button {
+                            schedule.toggle(item)
+                        } label: {
+                            Label(schedule.isSaved(item) ? "Remove" : "Save", systemImage: schedule.isSaved(item) ? "bookmark.slash" : "bookmark")
+                        }
+                        .tint(schedule.isSaved(item) ? .red : .blue)
+                    }
                 }
-                .swipeActions(edge: .trailing, allowsFullSwipe: true) {   // ⬅️ move it here
-                        MarkButton(item: item)
-                    }
             }
-            .navigationDestination(for: ClassItem.self) { item in
-                ClassDetailView(item: item)
-            }
-            .navigationTitle("Class Finder")
+            .navigationTitle("Classes")
             .searchable(text: $store.query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search class, teacher, room…")
             .toolbar {
+               
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Image("LaunchLogo") // 🎓 school icon
+                        .resizable()
+                                .scaledToFit()
+//                                .frame(height: 24)  match SF Symbol height
+//                                .padding(.leading, 4) // optional: adjust spacing
+                }
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
                     Button { store.refresh() } label: { Image(systemName: "arrow.triangle.2.circlepath") }
                     Toggle(isOn: $store.onlyOnSite) { Text("On‑site only") }
-                    // Login/Profile
-                        ProfileMenuButton()
+                    
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -305,7 +406,7 @@ struct ClassListView: View {
                 }
             }
         }
-    }
+    
 }
 
 #Preview {
@@ -325,7 +426,7 @@ import SwiftUI
 
 struct ClassDetailView: View {
     let item: ClassItem
-    @EnvironmentObject var schedule: ScheduleStore
+
     var body: some View {
         Form {
             Section(header: Text("Class")) {
@@ -333,6 +434,7 @@ struct ClassDetailView: View {
                 LabeledContent("Teacher", value: item.teacher)
                 if let cn = item.chineseTeacher { LabeledContent("中文老师", value: cn) }
                 LabeledContent("Grade", value: item.grade)
+                LabeledContent("Category", value: item.category)
             }
             Section(header: Text("Schedule")) {
                 LabeledContent("Day", value: item.day)
@@ -349,16 +451,6 @@ struct ClassDetailView: View {
             }
         }
         .navigationTitle("Details")
-        .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button {
-                            schedule.toggle(item.id)
-                        } label: {
-                            Image(systemName: schedule.isMarked(item.id) ? "checkmark.circle.fill" : "plus.circle")
-                        }
-                        .accessibilityLabel(schedule.isMarked(item.id) ? "Unmark class" : "Mark class")
-                    }
-                }
     }
 }
 
@@ -371,7 +463,8 @@ struct ClassDetailView: View {
         time: "10:30-12:20PM",
         grade: "> 8岁",
         room: "C-4",
-        buildingHint: "C"
+        buildingHint: "C",
+        category:"Junior Chinese Language Classes"
     ))
 }
 //```
@@ -382,42 +475,78 @@ struct ClassDetailView: View {
 //```swift
 import SwiftUI
 
+import SwiftUI
+
 struct ZoomableImageView: View {
     let imageName: String
+    var minScale: CGFloat = 1.0
+    var maxScale: CGFloat = 6.0
+
     @State private var scale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
 
     var body: some View {
-        GeometryReader { _ in
+        GeometryReader { geo in
+            let size = geo.size
+
             Image(imageName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(UIColor.systemBackground))
                 .scaleEffect(scale)
                 .offset(offset)
-                .background(Color(UIColor.systemBackground))
-                .gesture(MagnificationGesture().onChanged { value in
-                    scale = max(1.0, value)
-                })
-                .gesture(DragGesture()
-                    .onChanged { value in
-                        let t = value.translation
-                        offset = CGSize(width: lastOffset.width + t.width, height: lastOffset.height + t.height)
-                    }
-                    .onEnded { _ in lastOffset = offset }
+                // Pinch to zoom
+                .gesture(
+                    MagnificationGesture()
+                        .onChanged { value in
+                            // Clamp scale
+                            scale = max(minScale, min(maxScale, value))
+                        }
                 )
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Reset") { withAnimation { scale = 1.0; offset = .zero; lastOffset = .zero } }
+                // Drag to pan
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            let t = value.translation
+                            offset = CGSize(
+                                width: lastOffset.width + t.width,
+                                height: lastOffset.height + t.height
+                            )
+                        }
+                        .onEnded { _ in
+                            lastOffset = offset
+                        }
+                )
+                // Double-tap to zoom in/out
+                .onTapGesture(count: 2) {
+                    withAnimation(.spring()) {
+                        if scale < 2.0 {
+                            scale = 2.0
+                        } else {
+                            scale = 1.0
+                            offset = .zero
+                            lastOffset = .zero
+                        }
                     }
                 }
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            withAnimation {
+                                scale = 1.0
+                                offset = .zero
+                                lastOffset = .zero
+                            }
+                        } label: {
+                            Label("Reset", systemImage: "arrow.counterclockwise")
+                        }
+                    }
+                }
+                .contentShape(Rectangle()) // improves gesture hit-testing
         }
     }
-}
-
-#Preview {
-    NavigationStack { ZoomableImageView(imageName: "BuildingMap") }
 }
 //```
 //
@@ -462,72 +591,24 @@ struct SplashView: View {
 }
 
 #Preview { SplashView() }
-//```
-//
-//---
-//
-//// MARK: - File: Sources/Views/RootTabs.swift
-//```swift
+
 import SwiftUI
 
-struct RootTabs: View {
-    var body: some View {
-        let noticesURL = URL(string: "https://opensheet.vercel.app/1qgbo7IlKkuFpCTYzrtIWHwjo0K6zItfyEeY6t_YbLV4/notice")
 
-        TabView {
-            ClassListView()
-                .tabItem { Label("Classes", systemImage: "list.bullet") }
 
-            NavigationStack { ZoomableImageView(imageName: "BuildingMap").navigationTitle("Building Map") }
-                .tabItem { Label("Buildings", systemImage: "map") }
-
-            NavigationStack { ZoomableImageView(imageName: "ParkingMap").navigationTitle("Parking Map") }
-                .tabItem { Label("Parking", systemImage: "car") }
-            
-            NoticeListView(sheetURL: noticesURL)
-                            .tabItem { Label("Notices", systemImage: "bell") }
-            
-            MyScheduleView()
-                            .tabItem { Label("My Schedule", systemImage: "calendar.badge.checkmark") }
-                   
-        }
-    }
-}
-
-#Preview {
-    let provider = GoogleSheetsProvider(sheetURL: nil)
-    let store = ClassStore(provider: provider)
-    return RootTabs().environmentObject(store)
-}
-//```
-//
-//---
-// App/AppDelegate.swift (new)
-import SwiftUI
-import FirebaseCore
-
-final class AppDelegate: NSObject, UIApplicationDelegate {
-  func application(_ app: UIApplication,
-                   didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-    FirebaseApp.configure()
-    return true
-  }
-}
 // MARK: - File: Sources/App/EdgemontClassFinderApp.swift
 //```swift
 import SwiftUI
 
 @main
-struct ClassFinderApp: App {
+struct EdgemontClassFinderApp: App {
     // Set your Google Sheets JSON URL here (or leave nil for bundle/cache only)
-    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     private let sheetURL = URL(string: "https://opensheet.vercel.app/1uuM1vd0U1YDiHCnB9M-40hZIltGE0ij3ELVOBcnjRog/test")
 
     // Swap provider when you move to Firebase: ClassStore(provider: FirebaseProvider(...))
     @StateObject private var store = ClassStore(provider: GoogleSheetsProvider(sheetURL: URL(string: "https://opensheet.vercel.app/1uuM1vd0U1YDiHCnB9M-40hZIltGE0ij3ELVOBcnjRog/test")))
-    @StateObject private var authStore  = AuthStore()
     @StateObject private var appStateRef: AppState
-    @StateObject private var schedule = ScheduleStore()
+    @StateObject private var schedule = MyScheduleStore()
 
     init() {
         let provider = GoogleSheetsProvider(sheetURL: sheetURL)
@@ -543,10 +624,9 @@ struct ClassFinderApp: App {
                     SplashView()
                         .task { await appStateRef.startup(sheetURL: sheetURL) }
                 } else {
-                    RootTabs()
+                    AppRoot()
                         .environmentObject(store)
-                        .environmentObject(schedule)
-                        .environmentObject(authStore)
+                        .environmentObject((schedule))
                 }
             }
         }
@@ -560,3 +640,336 @@ struct ClassFinderApp: App {
 //- Add `classes.json` to your bundle if you want a seed dataset for first launch.
 //- Put your images (`BuildingMap`, `ParkingMap`, `LaunchLogo`) in **Assets.xcassets**.
 //- To switch to Firebase later, implement a real `FirebaseProvider` conforming to `ClassDataProvider` and change the provider passed to `ClassStore` in `EdgemontClassFinderApp`.
+
+
+
+
+
+import SwiftUI
+
+struct HomeView: View {
+    // instead of @Binding var selectedTab: RootTabs.Tab
+    let onNavigate: (Route) -> Void
+
+    @EnvironmentObject var classStore: ClassStore
+    @EnvironmentObject var schedule: MyScheduleStore
+    @Environment(\.colorScheme) private var colorScheme
+
+    @State private var activeSheet: Sheet?
+    enum Sheet: Identifiable, Hashable { case joinus, events, lostFound, sponsors,weeklynews, contactus, classparents; var id: Self { self } }
+
+    var body: some View {
+       
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14)], spacing: 14) {
+
+                    featureCard(
+                        title: "Classes",
+                        subtitle: "\(classStore.items.count) 课程信息",
+                        icon: "list.bullet.rectangle",
+                        gradient: Brand.blue,
+                        action: { onNavigate(.classes) }
+                    )
+
+                    featureCard(
+                        title: "Buildings",
+                        subtitle: "校园地图",
+                        icon: "map",
+                        gradient: Brand.teal,
+                        action: { onNavigate(.buildings) }
+                    )
+
+                    featureCard(
+                        title: "Parking",
+                        subtitle: "停车地图",
+                        icon: "car",
+                        gradient: Brand.slate,
+                        action: { onNavigate(.parking) }
+                    )
+
+                    featureCard(
+                        title: "Weekly News",
+                        subtitle: "校园周报",
+                        icon: "bell",
+                        gradient: Brand.orange,
+                        action: { activeSheet = .weeklynews }
+                    )
+
+                    featureCard(
+                        title: "School Calendar",
+                        subtitle: "校历",
+                        icon: "calendar",
+                        gradient: Brand.purple,
+                        action: { onNavigate(.calendar) }
+                    )
+
+                    featureCard(
+                        title: "My Schedule",
+                        subtitle: "\(schedule.saved.count) 关注的课程",
+                        icon: "bookmark",
+                        gradient: Brand.pink,
+                        action: { onNavigate(.saved) }
+                    )
+
+                    // Sheets from Home
+//                    featureCard(
+//                        title: "Upcoming Events",
+//                        subtitle: "活动预告",
+//                        icon: "star",
+//                        gradient: Brand.gold,
+//                        action: { activeSheet = .events }
+//                    )
+                    featureCard(
+                        title: "Lost & Found",
+                        subtitle: "失物招领",
+                        icon: "questionmark.folder",
+                        gradient: Brand.slate,
+                        action: { activeSheet = .lostFound }
+                    )
+                    
+                    featureCard(
+                        title: "Sponsors",
+                        subtitle: "赞助",
+                        icon: "hands.sparkles",
+                        gradient: Brand.orange,
+                        action: { activeSheet = .sponsors }
+                    )
+                    featureCard(
+                        title: "Contact Us",
+                        subtitle: "联系我们",
+                        icon: "envelope",
+                        gradient: Brand.teal,
+                        action: { activeSheet = .contactus }
+                    )
+                    featureCard(
+                        title: "Join Us",
+                        subtitle: "加入我们",
+                        icon: "envelope",
+                        gradient: Brand.teal,
+                        action: { activeSheet = .joinus }
+                    )
+                }
+                .padding(16)
+            }
+            .background(Palette.bg.ignoresSafeArea())
+            .sheet(item: $activeSheet) { which in
+                NavigationStack {
+                    switch which {
+                    case .joinus:
+                        OneColumnListView(
+                            title: "Join Us",
+                            sheetURL: URL(string: "https://opensheet.vercel.app/1qgbo7IlKkuFpCTYzrtIWHwjo0K6zItfyEeY6t_YbLV4/joinus"),
+                            slug: "join"
+                        )
+                    case .events:
+                        OneColumnListView(
+                            title: "Upcoming Events",
+                            sheetURL: URL(string: "https://opensheet.vercel.app/1qgbo7IlKkuFpCTYzrtIWHwjo0K6zItfyEeY6t_YbLV4/events"),
+                            slug: "events"
+                        )
+                    case .lostFound:
+                        OneColumnListView(
+                            title: "Lost & Found",
+                            sheetURL: URL(string: "https://opensheet.vercel.app/1qgbo7IlKkuFpCTYzrtIWHwjo0K6zItfyEeY6t_YbLV4/lostnFound"),
+                            slug: "lostfound"
+                        )
+                    case .sponsors:
+                        OneColumnListView(
+                            title: "Sponsors",
+                            sheetURL: URL(string: "https://opensheet.vercel.app/1qgbo7IlKkuFpCTYzrtIWHwjo0K6zItfyEeY6t_YbLV4/sponsors"),
+                            slug: "sponsors"
+                        )
+                    case .contactus:
+                        OneColumnListView(
+                            title: "Contact Us",
+                            sheetURL: URL(string: "https://opensheet.vercel.app/1qgbo7IlKkuFpCTYzrtIWHwjo0K6zItfyEeY6t_YbLV4/contact"),
+                            slug: "contact"
+                        )
+                    case .classparents:
+                        OneColumnListView(
+                            title: "Class Parent Guide",
+                            sheetURL: URL(string: "https://opensheet.vercel.app/1qgbo7IlKkuFpCTYzrtIWHwjo0K6zItfyEeY6t_YbLV4/classparents"),
+                            slug: "classparent"
+                        )
+                    case .weeklynews :
+                        OneColumnListView(
+                            title: "Weekly News",
+                            sheetURL: URL(string: "https://opensheet.vercel.app/1qgbo7IlKkuFpCTYzrtIWHwjo0K6zItfyEeY6t_YbLV4/notice"),
+                            slug: "weeklynews")
+                        
+                        
+                    }
+                }
+            
+        }
+    }
+
+    // your existing featureCard(...) helper remains unchanged
+
+    
+    
+    @ViewBuilder
+    private func featureCard(
+        title: String,
+        subtitle: String,
+        icon: String,
+        gradient: [Color],
+        iconTint: Color = .white,
+        action: @escaping () -> Void
+    ) -> some View {
+        
+        let adjusted = colorScheme == .dark ? gradient.map { $0.opacity(0.9) } : gradient
+
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(iconTint)
+                    .padding(10)
+                    .background(.ultraThinMaterial, in: Circle())
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.8))
+                        .lineLimit(1)
+                }
+
+                HStack {
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, minHeight: 118, alignment: .topLeading)
+            .background(
+                LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+            )
+            .overlay(
+                // subtle inner stroke for crisp edges in both modes
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.8)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: Brand.shadow, radius: 12, x: 0, y: 8)
+            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(title). \(subtitle)")
+        }
+        .buttonStyle(.plain)
+    }
+    
+}
+
+// MARK: - Neutral palette (semantic, dark-mode aware)
+private enum Palette {
+    static let bg     = Color(uiColor: .systemBackground)
+    static let card   = Color(uiColor: .secondarySystemBackground)
+    static let iconBg = Color(uiColor: .tertiarySystemFill)
+    static let stroke = Color(uiColor: .separator)
+    static let accent = Color.accentColor  // keep app’s global accent (blue by default)
+    static let shadow = Color.black.opacity(0.08)
+}
+
+//#Preview {
+//    let provider = GoogleSheetsProvider(sheetURL: nil)
+//    let store = ClassStore(provider: provider)
+//    let schedule = MyScheduleStore()
+//    return HomeView(selectedTab: .constant(.home))
+//        .environmentObject(store)
+//        .environmentObject(schedule)
+//}
+
+// Put this near HomeView.swift
+import SwiftUI
+
+private struct Brand {
+    // If you add named colors in Assets, prefer Color("BrandBlue") etc.
+    // Here we use safe system-based colors + hex helpers.
+    static let stroke  = Color(uiColor: .separator)
+    static let shadow  = Color.black.opacity(0.08)
+
+    // Card gradients (light/dark friendly)
+    static let blue    = [Color(hex: 0x4F8BFF), Color(hex: 0x3A6CF0)]
+    static let green   = [Color(hex: 0x38C172), Color(hex: 0x1EAD66)]
+    static let orange  = [Color(hex: 0xFF9F43), Color(hex: 0xFF7F11)]
+    static let purple  = [Color(hex: 0x7D5FFF), Color(hex: 0x5B3CF2)]
+    static let pink    = [Color(hex: 0xFF6B81), Color(hex: 0xFF4D6D)]
+    static let teal    = [Color(hex: 0x20C997), Color(hex: 0x14B8A6)]
+    static let gold    = [Color(hex: 0xF4C95D), Color(hex: 0xE0A106)]
+    static let slate   = [Color(hex: 0x94A3B8), Color(hex: 0x64748B)]
+}
+
+// Small util for hex colors
+private extension Color {
+    init(hex: UInt, alpha: Double = 1.0) {
+        let r = Double((hex >> 16) & 0xff) / 255
+        let g = Double((hex >> 8) & 0xff) / 255
+        let b = Double(hex & 0xff) / 255
+        self.init(.sRGB, red: r, green: g, blue: b, opacity: alpha)
+    }
+}
+
+
+import SwiftUI
+
+/// All full-screen destinations you can navigate to from Home
+enum Route: Hashable {
+    case classes, buildings, parking,  calendar, saved
+}
+
+struct AppRoot: View {
+    @EnvironmentObject var store: ClassStore
+    @EnvironmentObject var schedule: MyScheduleStore
+    @State private var path: [Route] = []
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            // Home is now the only root screen
+            HomeView(onNavigate: { route in
+                path.append(route)
+            })
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar{
+                ToolbarItem(placement: .principal) {
+                    Image("LaunchLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 350)      // keep small so it stays in the bar
+                        .padding(.top, 12)       // tiny nudge down if you like
+                }}
+            .navigationDestination(for: Route.self) { route in
+                switch route {
+                case .classes:
+                    ClassListView()
+                case .buildings:
+                    ZoomableImageView(imageName: "BuildingMap")
+                        .navigationTitle("Building Map")
+                case .parking:
+                    ZoomableImageView(imageName: "ParkingMap")
+                        .navigationTitle("Parking Map")
+            
+                case .calendar:
+                    ZoomableImageView(imageName: "HXGNY-Calendar")
+                            .navigationTitle("Calendar")
+                case .saved:
+                    MyScheduleView()
+                }
+            }
+        }
+    }
+}
+
+#Preview {
+    let provider = GoogleSheetsProvider(sheetURL: nil)
+    let store = ClassStore(provider: provider)
+    let schedule = MyScheduleStore()
+    return AppRoot()
+        .environmentObject(store)
+        .environmentObject(schedule)
+}

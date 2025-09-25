@@ -104,10 +104,20 @@ public final class NoticeStore: ObservableObject {
 
     private let provider: NoticeDataProvider
 
-    public init(provider: NoticeDataProvider) {
-        self.provider = provider
-        items = provider.load()
-    }
+//    public init(provider: NoticeDataProvider) {
+//        self.provider = provider
+//        items = provider.load()
+//    }
+    public init(provider: NoticeDataProvider, autoRefresh: Bool = true) {
+            self.provider = provider
+            // 1) Load cached/bundled immediately for fast UI
+            self.items = provider.load()
+
+            // 2) Then refresh from network to update + cache
+            if autoRefresh {
+                self.refresh()
+            }
+        }
 
     public func refresh() {
         provider.refresh { ok in
@@ -129,8 +139,9 @@ public struct NoticeListView: View {
 
     init(sheetURL: URL?) {
         _store = StateObject(wrappedValue: NoticeStore(
-            provider: GoogleSheetsNoticeProvider(sheetURL: sheetURL)
+            provider: GoogleSheetsNoticeProvider(sheetURL: sheetURL),autoRefresh: true
         ))
+        
     }
 
     public var body: some View {
@@ -152,8 +163,9 @@ public struct NoticeListView: View {
                             .font(.body)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(.vertical, 2)
+                    .padding(.vertical, 6)
                 }
+                .listRowSeparatorTint(.red)
                 .refreshable { store.refresh() }
                 .navigationTitle("Notices")
                 .toolbar {
@@ -163,6 +175,7 @@ public struct NoticeListView: View {
                 }
             }
         }
+        .onAppear { store.refresh() }
     }
 }
 private func linkify(_ text: String) -> AttributedString {
