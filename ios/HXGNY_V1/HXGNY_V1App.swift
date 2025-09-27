@@ -942,7 +942,13 @@ struct AppRoot: View {
                         .scaledToFit()
                         .frame(height: 350)      // keep small so it stays in the bar
                         .padding(.top, 12)       // tiny nudge down if you like
-                }}
+                    
+                }
+                ToolbarItem(placement: .topBarTrailing) {   // iOS 17; use .navigationBarTrailing for iOS 16
+                       UpdateButton()
+                   }
+            }
+            
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .classes:
@@ -972,4 +978,36 @@ struct AppRoot: View {
     return AppRoot()
         .environmentObject(store)
         .environmentObject(schedule)
+}
+
+
+import SwiftUI
+
+/// Update helper – set your real App Store ID below.
+enum AppUpdater {
+    /// Replace with your real App Store numeric ID (no "id" prefix).
+    static let appID = "1234567890"
+
+    static var appStoreURL: URL {
+        URL(string: "itms-apps://itunes.apple.com/app/id\(appID)")!
+    }
+
+    static var webFallbackURL: URL {
+        URL(string: "https://apps.apple.com/app/id\(appID)")!
+    }
+}
+
+struct UpdateButton: View {
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        Button {
+            // Open the App Store directly; the web URL is a safe manual fallback if needed.
+            openURL(AppUpdater.appStoreURL)
+        } label: {
+            Image(systemName: "arrow.down.circle")
+        }
+        .accessibilityLabel("Update in App Store")
+        .help("Update in App Store")
+    }
 }
