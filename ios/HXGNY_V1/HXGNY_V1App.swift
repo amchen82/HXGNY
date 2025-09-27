@@ -632,14 +632,6 @@ struct EdgemontClassFinderApp: App {
         }
     }
 }
-//```
-//
-//---
-
-//# Notes
-//- Add `classes.json` to your bundle if you want a seed dataset for first launch.
-//- Put your images (`BuildingMap`, `ParkingMap`, `LaunchLogo`) in **Assets.xcassets**.
-//- To switch to Firebase later, implement a real `FirebaseProvider` conforming to `ClassDataProvider` and change the provider passed to `ClassStore` in `EdgemontClassFinderApp`.
 
 
 
@@ -656,18 +648,35 @@ struct HomeView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     @State private var activeSheet: Sheet?
-    enum Sheet: Identifiable, Hashable { case joinus, events, lostFound, sponsors,weeklynews, contactus, classparents; var id: Self { self } }
+    enum Sheet: Identifiable, Hashable { case joinus,  lostFound, sponsors,weeklynews,schoolIntro, contactus; var id: Self { self } }
 
     var body: some View {
        
             ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14)], spacing: 14) {
+                VStack(spacing: 20) {
+                    
+                    // App logo as title
+                                    Image("LaunchLogo")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(height: 80)   // adjust size
+                                        .padding(.top, 12)
 
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14)], spacing: 14) {
+                  
+                    featureCard(
+                        title: "School Intro",
+                        subtitle: "学校简介",
+                        icon: "list.bullet.rectangle",
+//                        gradient: Brand.blue,
+                        action: { activeSheet = .schoolIntro}
+                    )
+                    
                     featureCard(
                         title: "Classes",
                         subtitle: "\(classStore.items.count) 课程信息",
                         icon: "list.bullet.rectangle",
-                        gradient: Brand.blue,
+//                        gradient: Brand.blue,
                         action: { onNavigate(.classes) }
                     )
 
@@ -675,7 +684,7 @@ struct HomeView: View {
                         title: "Buildings",
                         subtitle: "校园地图",
                         icon: "map",
-                        gradient: Brand.teal,
+//                        gradient: Brand.teal,
                         action: { onNavigate(.buildings) }
                     )
 
@@ -683,7 +692,7 @@ struct HomeView: View {
                         title: "Parking",
                         subtitle: "停车地图",
                         icon: "car",
-                        gradient: Brand.slate,
+//                        gradient: Brand.slate,
                         action: { onNavigate(.parking) }
                     )
 
@@ -691,7 +700,7 @@ struct HomeView: View {
                         title: "Weekly News",
                         subtitle: "校园周报",
                         icon: "bell",
-                        gradient: Brand.orange,
+//                        gradient: Brand.orange,
                         action: { activeSheet = .weeklynews }
                     )
 
@@ -699,7 +708,7 @@ struct HomeView: View {
                         title: "School Calendar",
                         subtitle: "校历",
                         icon: "calendar",
-                        gradient: Brand.purple,
+//                        gradient: Brand.purple,
                         action: { onNavigate(.calendar) }
                     )
 
@@ -707,7 +716,7 @@ struct HomeView: View {
                         title: "My Schedule",
                         subtitle: "\(schedule.saved.count) 关注的课程",
                         icon: "bookmark",
-                        gradient: Brand.pink,
+//                        gradient: Brand.pink,
                         action: { onNavigate(.saved) }
                     )
 
@@ -723,7 +732,7 @@ struct HomeView: View {
                         title: "Lost & Found",
                         subtitle: "失物招领",
                         icon: "questionmark.folder",
-                        gradient: Brand.slate,
+//                        gradient: Brand.slate,
                         action: { activeSheet = .lostFound }
                     )
                     
@@ -731,21 +740,21 @@ struct HomeView: View {
                         title: "Sponsors",
                         subtitle: "赞助",
                         icon: "hands.sparkles",
-                        gradient: Brand.orange,
+//                        gradient: Brand.orange,
                         action: { activeSheet = .sponsors }
                     )
                     featureCard(
                         title: "Contact Us",
                         subtitle: "联系我们",
                         icon: "envelope",
-                        gradient: Brand.teal,
+//                        gradient: Brand.teal,
                         action: { activeSheet = .contactus }
                     )
                     featureCard(
                         title: "Join Us",
                         subtitle: "加入我们",
                         icon: "envelope",
-                        gradient: Brand.teal,
+//                        gradient: Brand.teal,
                         action: { activeSheet = .joinus }
                     )
                 }
@@ -755,86 +764,113 @@ struct HomeView: View {
             .sheet(item: $activeSheet) { which in
                 NavigationStack {
                     switch which {
+                    case .schoolIntro:
+                        OneColumnListView(
+                            title: "School Intro",
+                            sheetURL: URL(string: "https://opensheet.vercel.app/1qgbo7IlKkuFpCTYzrtIWHwjo0K6zItfyEeY6t_YbLV4/schoolintro"),
+                            slug: "join"
+                        ).toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("< Back") {
+                                    activeSheet = nil   // dismiss the sheet
+                                }
+                            }
+                        }
                     case .joinus:
                         OneColumnListView(
                             title: "Join Us",
                             sheetURL: URL(string: "https://opensheet.vercel.app/1qgbo7IlKkuFpCTYzrtIWHwjo0K6zItfyEeY6t_YbLV4/joinus"),
                             slug: "join"
-                        )
-                    case .events:
-                        OneColumnListView(
-                            title: "Upcoming Events",
-                            sheetURL: URL(string: "https://opensheet.vercel.app/1qgbo7IlKkuFpCTYzrtIWHwjo0K6zItfyEeY6t_YbLV4/events"),
-                            slug: "events"
-                        )
+                        ).toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("< Back") {
+                                    activeSheet = nil   // dismiss the sheet
+                                }
+                            }
+                        }
                     case .lostFound:
                         OneColumnListView(
                             title: "Lost & Found",
                             sheetURL: URL(string: "https://opensheet.vercel.app/1qgbo7IlKkuFpCTYzrtIWHwjo0K6zItfyEeY6t_YbLV4/lostnFound"),
                             slug: "lostfound"
                         )
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("< Back") {
+                                    activeSheet = nil   // dismiss the sheet
+                                }
+                            }
+                        }
                     case .sponsors:
                         OneColumnListView(
                             title: "Sponsors",
                             sheetURL: URL(string: "https://opensheet.vercel.app/1qgbo7IlKkuFpCTYzrtIWHwjo0K6zItfyEeY6t_YbLV4/sponsors"),
                             slug: "sponsors"
                         )
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("< Back") {
+                                    activeSheet = nil   // dismiss the sheet
+                                }
+                            }
+                        }
                     case .contactus:
                         OneColumnListView(
                             title: "Contact Us",
                             sheetURL: URL(string: "https://opensheet.vercel.app/1qgbo7IlKkuFpCTYzrtIWHwjo0K6zItfyEeY6t_YbLV4/contact"),
                             slug: "contact"
                         )
-                    case .classparents:
-                        OneColumnListView(
-                            title: "Class Parent Guide",
-                            sheetURL: URL(string: "https://opensheet.vercel.app/1qgbo7IlKkuFpCTYzrtIWHwjo0K6zItfyEeY6t_YbLV4/classparents"),
-                            slug: "classparent"
-                        )
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("< Back") {
+                                    activeSheet = nil   // dismiss the sheet
+                                }
+                            }
+                        }
+                        
                     case .weeklynews :
                         OneColumnListView(
                             title: "Weekly News",
                             sheetURL: URL(string: "https://opensheet.vercel.app/1qgbo7IlKkuFpCTYzrtIWHwjo0K6zItfyEeY6t_YbLV4/notice"),
                             slug: "weeklynews")
-                        
-                        
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("< Back") {
+                                    activeSheet = nil   // dismiss the sheet
+                                }
+                            }
+                        }
                     }
                 }
-            
+            }
         }
     }
 
     // your existing featureCard(...) helper remains unchanged
 
-    
-    
     @ViewBuilder
     private func featureCard(
         title: String,
         subtitle: String,
         icon: String,
-        gradient: [Color],
-        iconTint: Color = .white,
+        iconTint: Color = .primary,
         action: @escaping () -> Void
     ) -> some View {
-        
-        let adjusted = colorScheme == .dark ? gradient.map { $0.opacity(0.9) } : gradient
-
         Button(action: action) {
             VStack(alignment: .leading, spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 26, weight: .semibold))
+                    .font(.system(size: 24, weight: .semibold))
                     .foregroundStyle(iconTint)
                     .padding(10)
-                    .background(.ultraThinMaterial, in: Circle())
+                    .background(.thinMaterial, in: Circle()) // 👈 icon also gets material
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.headline)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                     Text(subtitle)
                         .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
 
@@ -842,28 +878,25 @@ struct HomeView: View {
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(.secondary)
                 }
             }
             .padding(16)
             .frame(maxWidth: .infinity, minHeight: 118, alignment: .topLeading)
-            .background(
-                LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
-            )
+            .background(.thinMaterial)   // 👈 main card background
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay(
-                // subtle inner stroke for crisp edges in both modes
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.8)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .shadow(color: Brand.shadow, radius: 12, x: 0, y: 8)
-            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(title). \(subtitle)")
         }
         .buttonStyle(.plain)
     }
-    
+
 }
 
 // MARK: - Neutral palette (semantic, dark-mode aware)
@@ -876,34 +909,25 @@ private enum Palette {
     static let shadow = Color.black.opacity(0.08)
 }
 
-//#Preview {
-//    let provider = GoogleSheetsProvider(sheetURL: nil)
-//    let store = ClassStore(provider: provider)
-//    let schedule = MyScheduleStore()
-//    return HomeView(selectedTab: .constant(.home))
-//        .environmentObject(store)
-//        .environmentObject(schedule)
-//}
 
-// Put this near HomeView.swift
+
+// Put this near HomeView.swift (replace your existing Brand)
 import SwiftUI
 
 private struct Brand {
-    // If you add named colors in Assets, prefer Color("BrandBlue") etc.
-    // Here we use safe system-based colors + hex helpers.
+    // Subtle, system-friendly neutrals
     static let stroke  = Color(uiColor: .separator)
-    static let shadow  = Color.black.opacity(0.08)
+    static let shadow  = Color.black.opacity(0.04)   // lighter shadow
+    static let cardBg  = Color(uiColor: .secondarySystemBackground)
+    static let iconBg  = Color(uiColor: .tertiarySystemFill)
+    static let textPri = Color.primary
+    static let textSec = Color.secondary
 
-    // Card gradients (light/dark friendly)
-    static let blue    = [Color(hex: 0x4F8BFF), Color(hex: 0x3A6CF0)]
-    static let green   = [Color(hex: 0x38C172), Color(hex: 0x1EAD66)]
-    static let orange  = [Color(hex: 0xFF9F43), Color(hex: 0xFF7F11)]
-    static let purple  = [Color(hex: 0x7D5FFF), Color(hex: 0x5B3CF2)]
-    static let pink    = [Color(hex: 0xFF6B81), Color(hex: 0xFF4D6D)]
-    static let teal    = [Color(hex: 0x20C997), Color(hex: 0x14B8A6)]
-    static let gold    = [Color(hex: 0xF4C95D), Color(hex: 0xE0A106)]
-    static let slate   = [Color(hex: 0x94A3B8), Color(hex: 0x64748B)]
+    // Keep a single professional accent (or rely on app tint)
+    static let accent  = Color.accentColor
 }
+
+
 
 // Small util for hex colors
 private extension Color {
@@ -935,19 +959,6 @@ struct AppRoot: View {
                 path.append(route)
             })
             .navigationBarTitleDisplayMode(.large)
-            .toolbar{
-                ToolbarItem(placement: .principal) {
-                    Image("LaunchLogo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(height: 350)      // keep small so it stays in the bar
-                        .padding(.top, 12)       // tiny nudge down if you like
-                    
-                }
-                ToolbarItem(placement: .topBarTrailing) {   // iOS 17; use .navigationBarTrailing for iOS 16
-                       UpdateButton()
-                   }
-            }
             
             .navigationDestination(for: Route.self) { route in
                 switch route {
@@ -967,6 +978,12 @@ struct AppRoot: View {
                     MyScheduleView()
                 }
             }
+            .safeAreaInset(edge: .bottom) {
+                            UpdateButton()
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(.ultraThinMaterial)   // subtle background
+                        }
         }
     }
 }
@@ -986,7 +1003,7 @@ import SwiftUI
 /// Update helper – set your real App Store ID below.
 enum AppUpdater {
     /// Replace with your real App Store numeric ID (no "id" prefix).
-    static let appID = "1234567890"
+    static let appID = "6752210002"
 
     static var appStoreURL: URL {
         URL(string: "itms-apps://itunes.apple.com/app/id\(appID)")!
@@ -1001,13 +1018,13 @@ struct UpdateButton: View {
     @Environment(\.openURL) private var openURL
 
     var body: some View {
-        Button {
-            // Open the App Store directly; the web URL is a safe manual fallback if needed.
+        Button("Install Update") {
             openURL(AppUpdater.appStoreURL)
-        } label: {
-            Image(systemName: "arrow.down.circle")
         }
-        .accessibilityLabel("Update in App Store")
-        .help("Update in App Store")
+        .font(.subheadline)          // keep it small in nav bar
+        .foregroundColor(.blue)      // match system link color
+        .accessibilityLabel("Install update from App Store")
     }
 }
+
+
