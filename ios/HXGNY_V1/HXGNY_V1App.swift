@@ -661,7 +661,25 @@ struct HomeView: View {
                                         .scaledToFit()
                                         .frame(height: 80)   // adjust size
                                         .padding(.top, 12)
+                    VStack(spacing: 4) {
+                                Text("School Address: 200 White Oak Ln, Scarsdale, NY 10583")
+                                    .font(.subheadline).fontWeight(.semibold)
+                                    .multilineTextAlignment(.center)
+                                    .fixedSize(horizontal: false, vertical: true)
 
+                                // tappable email
+                                HStack(spacing: 6) {
+                                    Image(systemName: "envelope")
+                                        .imageScale(.small)
+                                        .foregroundStyle(.secondary)
+                                    Link("hxgnyadmin@googlegroups.com",
+                                         destination: URL(string: "mailto:hxgnyadmin@googlegroups.com")!)
+                                }
+                                .font(.caption)
+                                .foregroundStyle(.secondary) // or .foregroundColor(.secondary) for iOS 14
+                            }
+                            .padding(.horizontal)
+                    
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14)], spacing: 14) {
                   
                     featureCard(
