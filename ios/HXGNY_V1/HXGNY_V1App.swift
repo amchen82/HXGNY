@@ -653,7 +653,7 @@ struct HomeView: View {
     var body: some View {
        
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 4) {
                     
                     // App logo as title
                                     Image("LaunchLogo")
@@ -662,23 +662,41 @@ struct HomeView: View {
                                         .frame(height: 80)   // adjust size
                                         .padding(.top, 12)
                     VStack(spacing: 4) {
-                                Text("School Address: 200 White Oak Ln, Scarsdale, NY 10583")
-                                    .font(.subheadline).fontWeight(.semibold)
-                                    .multilineTextAlignment(.center)
-                                    .fixedSize(horizontal: false, vertical: true)
-
-                                // tappable email
-                                HStack(spacing: 6) {
-                                    Image(systemName: "envelope")
-                                        .imageScale(.small)
-                                        .foregroundStyle(.secondary)
-                                    Link("hxgnyadmin@googlegroups.com",
-                                         destination: URL(string: "mailto:hxgnyadmin@googlegroups.com")!)
-                                }
-                                .font(.caption)
-                                .foregroundStyle(.secondary) // or .foregroundColor(.secondary) for iOS 14
+                        Text("Huaxia Chinese School of Greater New York")
+                            .font(.subheadline).fontWeight(.semibold)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Text("200 White Oak Ln, Scarsdale, NY 10583")
+                            .font(.caption).fontWeight(.semibold)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        // tappable email
+                        HStack(spacing: 6) {
+                            // Website
+                            HStack(spacing: 3) {
+                                Image(systemName: "globe")
+                                    .imageScale(.small)
+                                    .foregroundStyle(.secondary)
+                                Link("www.hxgny.org",
+                                     destination: URL(string: "https://www.hxgny.org")!)
                             }
-                            .padding(.horizontal)
+                            // Email
+                            HStack(spacing: 3) {
+                                Image(systemName: "envelope")
+                                    .imageScale(.small)
+                                    .foregroundStyle(.secondary)
+                                Link("hxgnyadmin@googlegroups.com",
+                                     destination: URL(string: "mailto:hxgnyadmin@googlegroups.com")!)
+                            }
+                            
+                            
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal)
+                    }
                     
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14)], spacing: 14) {
                   
