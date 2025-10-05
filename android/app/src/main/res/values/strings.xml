@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">HXGNY</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="filter_all_categories">All Categories</string>
+    <string name="filter_on_site_only">On-site only</string>
+    <string name="label_last_updated">Last updated: %1</string>
+    <string name="no_saved_classes">No Saved Classes</string>
+    <string name="hint_search">Search class, teacher, room…</string>
+    <string name="notice_empty">No Notices</string>
+    <string name="one_column_empty">Nothing to show yet.</string>
+</resources>
