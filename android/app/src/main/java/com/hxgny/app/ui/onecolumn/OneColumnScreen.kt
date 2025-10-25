@@ -20,18 +20,18 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.AnnotatedString.Builder
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import java.text.DateFormat
 import java.util.Date
 import java.util.regex.Pattern
+
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun OneColumnScreen(
@@ -41,6 +41,7 @@ fun OneColumnScreen(
     onNavigateUp: () -> Unit
 ) {
     val context = LocalContext.current
+    val linkColor = MaterialTheme.colorScheme.primary
     Scaffold(
         topBar = {
             TopAppBar(
@@ -66,18 +67,27 @@ fun OneColumnScreen(
         ) {
             if (state.items.isEmpty()) {
                 item {
-                    Text("No content yet. Pull to refresh or check back later.", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "No content yet. Pull to refresh or check back later.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
             } else {
                 items(state.items) { item ->
-                    val annotated = remember(item.text) { linkify(item.text) }
+                    val annotated = remember(item.text, linkColor) { linkify(item.text, linkColor) }
                     androidx.compose.foundation.text.ClickableText(
                         text = annotated,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
                         onClick = { offset ->
-                            annotated.getStringAnnotations("URL", offset, offset).firstOrNull()?.let { link ->
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link.item)))
-                            }
+                            annotated.getStringAnnotations("URL", offset, offset).firstOrNull()
+                                ?.let { link ->
+                                    context.startActivity(
+                                        Intent(
+                                            Intent.ACTION_VIEW,
+                                            Uri.parse(link.item)
+                                        )
+                                    )
+                                }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -99,8 +109,8 @@ fun OneColumnScreen(
     }
 }
 
-private fun linkify(text: String): AnnotatedString {
-    val pattern = Pattern.compile("""https?://\S+""")
+private fun linkify(text: String, linkColor: Color): AnnotatedString {
+    val pattern = Pattern.compile("https?://\\S+")
     val matcher = pattern.matcher(text)
     val builder = Builder()
     var lastIndex = 0
@@ -112,7 +122,7 @@ private fun linkify(text: String): AnnotatedString {
         }
         val url = text.substring(start, end)
         builder.pushStringAnnotation(tag = "URL", annotation = url)
-        builder.withStyle(SpanStyle(color = Color(0xFF1D4ED8), textDecoration = TextDecoration.Underline)) {
+        builder.withStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)) {
             append(url)
         }
         builder.pop()

@@ -41,7 +41,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -95,13 +94,15 @@ fun HomeScreen(
                 text = "Huaxia Chinese School of Greater New York",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = "200 White Oak Ln, Scarsdale, NY 10583",
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 4.dp)
+                modifier = Modifier.padding(top = 4.dp),
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(8.dp))
             ContactLinks()
@@ -113,7 +114,6 @@ fun HomeScreen(
                     title = "School Intro",
                     subtitle = "学校简介",
                     icon = Icons.Outlined.Info,
-//                    tint = MaterialTheme.colorScheme.primary,
                     action = { onAction(HomeAction.OneColumn(OneColumnSlug.SchoolIntro)) }
                 ),
                 HomeCardData(
@@ -205,7 +205,6 @@ fun HomeScreen(
                                 Icon(
                                     imageVector = card.icon,
                                     contentDescription = null,
-//                                    tint = card.tint ?: MaterialTheme.colorScheme.primary
                                 )
                             },
                             colors = AssistChipDefaults.assistChipColors(
@@ -233,12 +232,12 @@ private fun ContactLinks() {
 @Composable
 private fun LinkRow(icon: ImageVector, label: String, url: String) {
     val context = LocalContext.current
-    val annotated = remember(url, label) {
+    val annotated =
         buildAnnotatedString {
             pushStringAnnotation(tag = "URL", annotation = url)
             withStyle(
                 SpanStyle(
-//                    color = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.colorScheme.primary,
                     textDecoration = TextDecoration.Underline
                 )
             ) {
@@ -246,10 +245,9 @@ private fun LinkRow(icon: ImageVector, label: String, url: String) {
             }
             pop()
         }
-    }
+
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
-        val context = LocalContext.current
         ClickableText(
             text = annotated,
             style = MaterialTheme.typography.bodySmall,
@@ -268,6 +266,5 @@ data class HomeCardData(
     val title: String,
     val subtitle: String,
     val icon: ImageVector,
-//    val tint: Color? = null,
     val action: () -> Unit
 )
