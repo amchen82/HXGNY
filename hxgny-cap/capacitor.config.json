@@ -1,0 +1,8 @@
+{
+  "appId": "com.infinityknowledge.hxgny",
+  "appName": "HXGNY",
+  "webDir": "www",
+  "server": { "allowNavigation": ["docs.google.com","raw.githubusercontent.com","api.github.com"] },
+  "ios": { "contentInset": "always", "scrollEnabled": false, "backgroundColor": "#f0f4f8" },
+  "android": { "backgroundColor": "#f0f4f8" }
+}
