@@ -662,160 +662,67 @@ struct HomeView: View {
     enum Sheet: Identifiable, Hashable { case joinus,  lostFound, sponsors,weeklynews,schoolIntro, contactus; var id: Self { self } }
 
     var body: some View {
-       
-            ScrollView {
-                VStack(spacing: 4) {
-                    
-                    // App logo as title
-                                    Image("LaunchLogo")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(height: 80)   // adjust size
-                                        .padding(.top, 12)
-                    VStack(spacing: 4) {
-                        Text("Huaxia Chinese School of Greater New York")
-                            .font(.subheadline).fontWeight(.semibold)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                        
-                        Text("200 White Oak Ln, Scarsdale, NY 10583")
-                            .font(.caption).fontWeight(.semibold)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                        
-                        // tappable email
-                        HStack(spacing: 6) {
-                            // Website
-                            HStack(spacing: 3) {
-                                Image(systemName: "globe")
-                                    .imageScale(.small)
-                                    .foregroundStyle(.secondary)
-                                Link("www.hxgny.org",
-                                     destination: URL(string: "https://www.hxgny.org")!)
-                            }
-                            // Email
-                            HStack(spacing: 3) {
-                                Image(systemName: "envelope")
-                                    .imageScale(.small)
-                                    .foregroundStyle(.secondary)
-                                Link("hxgnyadmin@googlegroups.com",
-                                     destination: URL(string: "mailto:hxgnyadmin@googlegroups.com")!)
-                            }
-                            
-                            
+        GeometryReader { proxy in
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(spacing: 0) {
+                    homeHeader
+
+                    VStack(spacing: 24) {
+                        galleryFeature
+
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 156), spacing: 14)], spacing: 14) {
+                        homeFeatureCard(
+                            title: "School\nIntro",
+                            subtitle: "学校简介",
+                            icon: "building.columns",
+                            action: { activeSheet = .schoolIntro }
+                        )
+
+                        homeFeatureCard(
+                            title: "Classes\n& rooms",
+                            subtitle: "课程时间与教室 · \(classStore.items.count) classes",
+                            icon: "clock",
+                            action: { onNavigate(.classes) }
+                        )
                         }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal)
+
+                        VStack(spacing: 0) {
+                            homeRowCard(
+                            title: "Weekly News",
+                            subtitle: "校园新闻与通知",
+                            detail: "Latest",
+                            icon: "newspaper",
+                            action: { activeSheet = .weeklynews }
+                            )
+
+                            Divider().padding(.leading, 78)
+
+                            homeRowCard(
+                            title: "School Calendar",
+                            subtitle: "校历与停课安排",
+                            detail: "View",
+                            icon: "calendar",
+                            action: { onNavigate(.calendar) }
+                            )
+                        }
+                        .background(.white.opacity(colorScheme == .dark ? 0.08 : 0.86))
+                        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                        )
+
+                        moreSection
                     }
-                    
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14)], spacing: 14) {
-                  
-                    featureCard(
-                        title: "School Intro",
-                        subtitle: "学校简介",
-                        icon: "list.bullet.rectangle",
-//                        gradient: Brand.blue,
-                        action: { activeSheet = .schoolIntro}
-                    )
-                    
-                    featureCard(
-                        title: "Classes",
-                        subtitle: "\(classStore.items.count) 课程信息",
-                        icon: "list.bullet.rectangle",
-//                        gradient: Brand.blue,
-                        action: { onNavigate(.classes) }
-                    )
-
-                    featureCard(
-                        title: "Buildings",
-                        subtitle: "校园地图",
-                        icon: "map",
-//                        gradient: Brand.teal,
-                        action: { onNavigate(.buildings) }
-                    )
-
-                    featureCard(
-                        title: "Parking",
-                        subtitle: "停车地图",
-                        icon: "car",
-//                        gradient: Brand.slate,
-                        action: { onNavigate(.parking) }
-                    )
-
-                    featureCard(
-                        title: "Weekly News",
-                        subtitle: "校园周报",
-                        icon: "bell",
-//                        gradient: Brand.orange,
-                        action: { activeSheet = .weeklynews }
-                    )
-
-                    featureCard(
-                        title: "School Calendar",
-                        subtitle: "校历",
-                        icon: "calendar",
-//                        gradient: Brand.purple,
-                        action: { onNavigate(.calendar) }
-                    )
-
-                    featureCard(
-                        title: "Gallery",
-                        subtitle: "校园相册",
-                        icon: "photo.on.rectangle",
-//                        gradient: Brand.teal,
-                        action: { onNavigate(.gallery) }
-                    )
-
-                    featureCard(
-                        title: "My Schedule",
-                        subtitle: "\(schedule.saved.count) 关注的课程",
-                        icon: "bookmark",
-//                        gradient: Brand.pink,
-                        action: { onNavigate(.saved) }
-                    )
-
-                    // Sheets from Home
-//                    featureCard(
-//                        title: "Upcoming Events",
-//                        subtitle: "活动预告",
-//                        icon: "star",
-//                        gradient: Brand.gold,
-//                        action: { activeSheet = .events }
-//                    )
-                    featureCard(
-                        title: "Lost & Found",
-                        subtitle: "失物招领",
-                        icon: "questionmark.folder",
-//                        gradient: Brand.slate,
-                        action: { activeSheet = .lostFound }
-                    )
-                    
-                    featureCard(
-                        title: "Sponsors",
-                        subtitle: "赞助",
-                        icon: "hands.sparkles",
-//                        gradient: Brand.orange,
-                        action: { activeSheet = .sponsors }
-                    )
-                    featureCard(
-                        title: "Contact Us",
-                        subtitle: "联系我们",
-                        icon: "envelope",
-//                        gradient: Brand.teal,
-                        action: { activeSheet = .contactus }
-                    )
-                    featureCard(
-                        title: "Join Us",
-                        subtitle: "加入我们",
-                        icon: "envelope",
-//                        gradient: Brand.teal,
-                        action: { activeSheet = .joinus }
-                    )
+                    .padding(.horizontal, 18)
+                    .padding(.top, 28)
+                    .padding(.bottom, 34)
                 }
-                .padding(16)
+                .frame(width: proxy.size.width, alignment: .top)
             }
-            .background(Palette.bg.ignoresSafeArea())
+            .scrollIndicators(.visible)
+        }
+        .background(HomeStyle.background.ignoresSafeArea())
             .sheet(item: $activeSheet) { which in
                 NavigationStack {
                     switch which {
@@ -901,6 +808,205 @@ struct HomeView: View {
                 }
             }
         }
+
+    private var homeHeader: some View {
+        VStack(spacing: 0) {
+            Image("LaunchLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 72)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Huaxia Chinese School of Greater New York")
+                    .font(.system(size: 20, weight: .bold, design: .serif))
+                    .foregroundStyle(HomeStyle.ink)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.72)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("200 White Oak Ln, Scarsdale NY · hxgny.org")
+                .font(.subheadline)
+                .foregroundStyle(HomeStyle.muted)
+                .lineLimit(2)
+                .minimumScaleFactor(0.82)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+        }
+        .background(HomeStyle.headerBackground)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.primary.opacity(0.08))
+                .frame(height: 1)
+        }
+    }
+
+    private var galleryFeature: some View {
+        Button {
+            onNavigate(.gallery)
+        } label: {
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("School Gallery")
+                            .font(.system(size: 25, weight: .bold, design: .serif))
+                            .foregroundStyle(HomeStyle.ink)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+
+                        Spacer(minLength: 10)
+
+                        Text("View all")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(HomeStyle.red)
+                    }
+
+                    Text("校园相册")
+                        .font(.subheadline)
+                        .foregroundStyle(HomeStyle.muted)
+                }
+
+                ZStack(alignment: .bottomLeading) {
+                    HomeGalleryPreview()
+
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.74)],
+                        startPoint: .center,
+                        endPoint: .bottom
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("School moments")
+                            .font(.system(size: 24, weight: .bold, design: .serif))
+                            .foregroundStyle(.white)
+                        Text("Photos from school events")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.84))
+                    }
+                    .padding(20)
+                }
+                .frame(height: 216)
+                .clipped()
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .shadow(color: .black.opacity(0.16), radius: 18, x: 0, y: 10)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var moreSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("MORE")
+                .font(.caption.weight(.bold))
+                .tracking(4)
+                .foregroundStyle(HomeStyle.muted)
+                .padding(.leading, 4)
+
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                homePill("Buildings", subtitle: "教学楼地图") { onNavigate(.buildings) }
+                homePill("Campus Parking", subtitle: "校园停车") { onNavigate(.parking) }
+                homePill("My Schedule", subtitle: "我的课程表") { onNavigate(.saved) }
+                homePill("Sponsors", subtitle: "赞助商") { activeSheet = .sponsors }
+                homePill("Lost & Found", subtitle: "失物招领") { activeSheet = .lostFound }
+                homePill("Contact Office", subtitle: "联系办公室") { activeSheet = .contactus }
+                homePill("Join Us", subtitle: "加入我们") { activeSheet = .joinus }
+            }
+        }
+    }
+
+    private func homeFeatureCard(title: String, subtitle: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 18) {
+                Image(systemName: icon)
+                    .font(.system(size: 30, weight: .medium))
+                    .foregroundStyle(HomeStyle.red)
+
+                Spacer(minLength: 18)
+
+                Text(title)
+                    .font(.system(size: 23, weight: .bold, design: .serif))
+                    .foregroundStyle(HomeStyle.ink)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.78)
+
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(HomeStyle.muted)
+                    .lineLimit(1)
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, minHeight: 164, alignment: .topLeading)
+            .background(HomeStyle.card)
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func homeRowCard(title: String, subtitle: String, detail: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 16) {
+                Image(systemName: icon)
+                    .font(.system(size: 21, weight: .semibold))
+                    .foregroundStyle(HomeStyle.red)
+                    .frame(width: 54, height: 54)
+                    .background(HomeStyle.red.opacity(0.09), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(title)
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(HomeStyle.ink)
+                        Spacer()
+                        Text(detail)
+                            .font(.subheadline)
+                            .foregroundStyle(HomeStyle.muted)
+                    }
+
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(HomeStyle.ink.opacity(0.78))
+                        .lineLimit(2)
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 18)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func homePill(_ title: String, subtitle: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(HomeStyle.ink.opacity(0.9))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(HomeStyle.muted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .padding(.horizontal, 18)
+            .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
+            .background(HomeStyle.card)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // your existing featureCard(...) helper remains unchanged
@@ -954,6 +1060,24 @@ struct HomeView: View {
         .buttonStyle(.plain)
     }
 
+}
+
+private enum HomeStyle {
+    static let background = LinearGradient(
+        colors: [Color(hex: 0xF6F1E7), Color(hex: 0xECE5D8)],
+        startPoint: .top,
+        endPoint: .bottom
+    )
+    static let headerBackground = LinearGradient(
+        colors: [Color(hex: 0xFFF8EA), Color(hex: 0xF2E8D6)],
+        startPoint: .top,
+        endPoint: .bottom
+    )
+    static let card = Color.white.opacity(0.9)
+    static let placeholder = Color(hex: 0xD9D2C5)
+    static let red = Color(hex: 0xB9251C)
+    static let ink = Color(hex: 0x211D18)
+    static let muted = Color(hex: 0x746B60)
 }
 
 // MARK: - Neutral palette (semantic, dark-mode aware)
@@ -1025,6 +1149,12 @@ private extension Color {
         let g = Double((hex >> 8) & 0xff) / 255
         let b = Double(hex & 0xff) / 255
         self.init(.sRGB, red: r, green: g, blue: b, opacity: alpha)
+    }
+}
+
+private extension Collection {
+    subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }
 
@@ -1344,6 +1474,151 @@ private struct DriveAlbum: Identifiable, Hashable {
     let photos: [DrivePhoto]
 }
 
+private struct HomeGalleryPreview: View {
+    @State private var photos: [DrivePhoto] = []
+    @State private var selectedIndex = 0
+    @State private var zoomPreview = false
+
+    var body: some View {
+        ZStack {
+            if let photo = photos[safe: selectedIndex] {
+                AsyncImage(url: photo.imageURL) { phase in
+                    switch phase {
+                    case .empty:
+                        placeholder
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .containerRelativeFrame(.horizontal) { length, _ in
+                                length * 0.8
+                            }
+                            .containerRelativeFrame(.vertical) { length, _ in
+                                length * 0.92
+                            }
+                            .background(HomeStyle.placeholder)
+                            .scaleEffect(zoomPreview ? 1.18 : 1.0)
+                    case .failure:
+                        placeholder
+                    @unknown default:
+                        placeholder
+                    }
+                }
+            } else {
+                placeholder
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .task {
+            await loadPreviewPhotos()
+        }
+        .onAppear {
+            startPreviewZoom()
+        }
+        .onChange(of: selectedIndex) { _ in
+            startPreviewZoom()
+        }
+        .onReceive(Timer.publish(every: 3.5, on: .main, in: .common).autoconnect()) { _ in
+            guard photos.count > 1 else { return }
+            withAnimation(.easeInOut(duration: 0.45)) {
+                selectedIndex = (selectedIndex + 1) % photos.count
+            }
+        }
+    }
+
+    private var placeholder: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(HomeStyle.placeholder)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .strokeBorder(HomeStyle.muted.opacity(0.55), style: StrokeStyle(lineWidth: 2, dash: [7, 7]))
+                )
+
+            VStack(spacing: 10) {
+                Image(systemName: "photo")
+                    .font(.system(size: 34, weight: .regular))
+                    .foregroundStyle(HomeStyle.muted.opacity(0.9))
+                Text("Campus photo albums")
+                    .font(.headline)
+                    .foregroundStyle(HomeStyle.ink.opacity(0.82))
+            }
+        }
+    }
+
+    private func startPreviewZoom() {
+        zoomPreview = false
+        withAnimation(.easeInOut(duration: 3.2)) {
+            zoomPreview = true
+        }
+    }
+
+    private func loadPreviewPhotos() async {
+        guard !GalleryConfiguration.folderID.isEmpty, !GalleryConfiguration.apiKey.isEmpty else {
+            photos = GalleryConfiguration.directPhotos
+            return
+        }
+
+        do {
+            let folders = try await loadFolders(in: GalleryConfiguration.folderID)
+            var loadedPhotos: [DrivePhoto] = []
+
+            for folder in folders {
+                loadedPhotos.append(contentsOf: try await loadPhotos(in: folder.id))
+            }
+
+            if loadedPhotos.isEmpty {
+                loadedPhotos = try await loadPhotos(in: GalleryConfiguration.folderID)
+            }
+
+            await MainActor.run {
+                photos = loadedPhotos.isEmpty ? GalleryConfiguration.directPhotos : Array(loadedPhotos.prefix(12))
+                selectedIndex = 0
+            }
+        } catch {
+            await MainActor.run {
+                photos = GalleryConfiguration.directPhotos
+            }
+        }
+    }
+
+    private func loadFolders(in parentID: String) async throws -> [DriveFolder] {
+        let url = try makeDriveURL(
+            query: "'\(parentID)' in parents and trashed = false and mimeType = 'application/vnd.google-apps.folder'",
+            fields: "files(id,name)"
+        )
+        let (data, _) = try await URLSession.shared.data(from: url)
+        return try JSONDecoder().decode(DriveFolderResponse.self, from: data).files
+    }
+
+    private func loadPhotos(in parentID: String) async throws -> [DrivePhoto] {
+        let url = try makeDriveURL(
+            query: "'\(parentID)' in parents and trashed = false and mimeType contains 'image/'",
+            fields: "files(id,name,thumbnailLink)"
+        )
+        let (data, _) = try await URLSession.shared.data(from: url)
+        return try JSONDecoder().decode(DrivePhotoResponse.self, from: data).files
+    }
+
+    private func makeDriveURL(query: String, fields: String) throws -> URL {
+        var components = URLComponents(string: "https://www.googleapis.com/drive/v3/files")
+        components?.queryItems = [
+            URLQueryItem(name: "q", value: query),
+            URLQueryItem(name: "fields", value: fields),
+            URLQueryItem(name: "orderBy", value: "name"),
+            URLQueryItem(name: "key", value: GalleryConfiguration.apiKey)
+        ]
+
+        guard let url = components?.url else {
+            throw URLError(.badURL)
+        }
+
+        return url
+    }
+}
+
 private struct DriveGalleryView: View {
     let folderID: String
     let apiKey: String
@@ -1614,11 +1889,13 @@ struct AppRoot: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                            UpdateButton()
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(.ultraThinMaterial)   // subtle background
-                        }
+                HStack {
+                    Spacer()
+                    UpdateButton()
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 4)
+            }
         }
     }
 }
@@ -1656,8 +1933,11 @@ struct UpdateButton: View {
         Button("Install Update") {
             openURL(AppUpdater.appStoreURL)
         }
-        .font(.subheadline)          // keep it small in nav bar
-        .foregroundColor(.blue)      // match system link color
+        .font(.caption.weight(.semibold))
+        .foregroundColor(.blue)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(.thinMaterial, in: Capsule())
         .accessibilityLabel("Install update from App Store")
     }
 }
